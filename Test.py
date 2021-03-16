@@ -1,63 +1,46 @@
 import PySimpleGUI as sg
-import time, random
+"""
+    Demo - 2 simultaneous windows using read_all_window
 
-contents = [[0, 'Temperature', 0], [1, 'Pressure', 0]]
-layout = [[sg.Table(values=contents,
-                    headings=['ID', 'Sensor', 'Reading'],
-                    key='table',
-                    enable_events=True)],
-          [sg.T('Selected Row: None ', key='sr')],
-          [sg.Button('Delete Row')]]
+    Window 1 launches window 2
+    BOTH remain active in parallel
 
-window = sg.Window('', layout=layout)
+    Both windows have buttons to launch popups.  The popups are "modal" and thus no other windows will be active
 
-timer = 0
-selected_row = None
+    Copyright 2020 PySimpleGUI.org
+"""
 
-
-def update_table():
-    window.Element('table').Update(values=contents)
-    window.Element('sr').Update('Selected Row: %s' % selected_row)
-
-    # need something like this to keep same row selected (highlighted)
-    # if selected_row:
-    #     window.Element('table').Update(selected_row=selected_row)
+def make_win1():
+    layout = [[sg.Text('This is the FIRST WINDOW'), sg.Text('      ', k='-OUTPUT-')],
+              [sg.Text('Click Popup anytime to see a modal popup')],
+              [sg.Button('Launch 2nd Window'), sg.Button('Popup'), sg.Button('Exit')]]
+    return sg.Window('Window Title', layout, location=(800,600), finalize=True)
 
 
-while True:
-    e, v = window.Read(timeout=100)
+def make_win2():
+    layout = [[sg.Text('The second window')],
+              [sg.Input(key='-IN-', enable_events=True)],
+              [sg.Text(size=(25,1), k='-OUTPUT-')],
+              [sg.Button('Erase'), sg.Button('Popup'), sg.Button('Exit')]]
+    return sg.Window('Second Window', layout, finalize=True)
 
-    if e == 'None' or e is None:
-        break
+window1, window2 = make_win1(), None        # start off with 1 window open
 
-    elif e == 'table':
-        selected_row = v['table'][0]
-        print('selected row:', selected_row)
-        window.Element('sr').Update('Selected Row: %s' % selected_row)
-
-        # Create new window with row_colors changed
-        layout = [[sg.Table(values=contents,
-                            headings=['ID', 'Sensor', 'Reading'],
-                            key='table',
-                            row_colors=((selected_row, 'light blue'),),
-                            enable_events=True)],
-                  [sg.T('Selected Row: None ', key='sr')],
-                  [sg.Button('Delete Row')]]
-
-        window.Close()
-        window = sg.Window('', layout=layout)
-
-    elif e == 'Delete Row':
-        if selected_row is not None:
-            contents.pop(selected_row)
-            selected_row = None
-            update_table()
-
-    # run every 2 seconds
-    if time.time() - timer >= 2:
-        timer = time.time()
-        for item in contents:
-            item[2] = random.randint(1, 101)
-        update_table()
-
-window.Close()
+while True:             # Event Loop
+    window, event, values = sg.read_all_windows()
+    if event == sg.WIN_CLOSED or event == 'Exit':
+        window.close()
+        if window == window2:       # if closing win 2, mark as closed
+            window2 = None
+        elif window == window1:     # if closing win 1, exit program
+            break
+    elif event == 'Popup':
+        sg.popup('This is a BLOCKING popup','all windows remain inactive while popup active')
+    elif event == 'Launch 2nd Window' and not window2:
+        window2 = make_win2()
+    elif event == '-IN-':
+        window['-OUTPUT-'].update(f'You enetered {values["-IN-"]}')
+    elif event == 'Erase':
+        window['-OUTPUT-'].update('')
+        window['-IN-'].update('')
+window.close()

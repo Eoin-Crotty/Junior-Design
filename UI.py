@@ -52,6 +52,14 @@ def plotgerber(canvas, fig,ax,canvas_toolbar,c_row,p_row,xCords,yCords,name,text
     toolbar.update()
     figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=1)
 
+def loadpopup():
+    layout = [
+        [sg.Text("Enter file path or name in path.")],
+        [sg.In(size=(25, 1), enable_events=True, key='loadcfg')],
+        [sg.Button("Load Config")]
+    ]
+    return sg.Window('Load', layout, finalize=True)
+
 def makeEditor(data,row1,row2):
     pin1 = data['Flags Data'][row1[0]].getList()
     pin2 = data['Flags Data'][row2[0]].getList()
@@ -119,7 +127,7 @@ def UI(data):
                      enable_events=True,
                      num_rows=min(25, len(data)))]
         ,
-        [sg.Button('Link'), sg.Button('Edit Flags')],
+        [sg.Button('Link'), sg.Button('Edit Flags'),sg.Button('Save'),sg.Button('Load')],
         ]
 
 
@@ -130,6 +138,7 @@ def UI(data):
             sg.Column(gerber_Layout)
         ]
     ]
+    Loadpopup = None
     flagEditor = None
     window1 = sg.Window('Gerber View', layout,finalize=True)
     window1['Ftable1'].bind('<Button-1>','+LEFT CLICK+')
@@ -162,6 +171,8 @@ def UI(data):
             window.close()
             if window == flagEditor:  # if closing win 2, mark as closed
                 flagEditor = None
+            if window == Loadpopup:  # if closing win 3, mark as closed
+                Loadpopup = None
             elif window == window1:  # if closing win 1, exit program
                 break
 
@@ -195,7 +206,6 @@ def UI(data):
             if len(row) != 0:
                 part = data['Part'][row].item()
                 pad = data['Pad'][row].item()
-                print(part)
                 #checks is search has been run
                 if len(newvalues) > 0:
                     # takes info from seach data
@@ -218,7 +228,6 @@ def UI(data):
             if values['data'] != '':
                 search = values['data']
                 newvalues = [x for x in data.values.tolist() if search in x]
-                print(newvalues)
                 window1['Ftable1'].update(newvalues)
                 window1['Ftable2'].update(newvalues)
             elif values['data'] == '':
@@ -323,7 +332,17 @@ def UI(data):
             flagEditor['P2table'].update(P2Class.getList())
             window1['Ftable1'].update(data.values.tolist())
             window1['Ftable2'].update(data.values.tolist())
-
+        elif event == 'Save':
+            data.to_pickle("Config.pkl")
+        elif event == "Load" and not Loadpopup:
+            Loadpopup = loadpopup()
+        elif event == "Load Config" and values['loadcfg'] != '':
+            try:
+                data = pandas.read_pickle(values['loadcfg'])
+                window1['Ftable1'].update(data.values.tolist())
+                window1['Ftable2'].update(data.values.tolist())
+            except:
+                sg.popup("Error: File not Found")
             """                                    
             The Plan:
             1) create new window / expand old one
@@ -339,6 +358,7 @@ def UI(data):
 
 if __name__ == '__main__':
     df = pandas.read_csv("output.csv")
+    #df = pandas.read_pickle("Config.pkl")
     df.insert(4,"Flags","")
     df.insert(5,"Flags Data","")
     print(df)
